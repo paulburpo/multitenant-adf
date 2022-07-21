@@ -1,0 +1,484 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name",
+            "defaultValue": "multitenant-adf"
+        },
+        "TenantDatabases_connectionString": {
+            "type": "secureString",
+            "metadata": "Secure string for 'connectionString' of 'TenantDatabases'"
+        },
+        "warehouse_connectionString": {
+            "type": "secureString",
+            "metadata": "Secure string for 'connectionString' of 'warehouse'"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/TenantDatabases')]",
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "parameters": {
+                    "DatabaseName": {
+                        "type": "string",
+                        "defaultValue": "db_name"
+                    },
+                    "ServerName": {
+                        "type": "string",
+                        "defaultValue": "server_name"
+                    },
+                    "TenantID": {
+                        "type": "string",
+                        "defaultValue": "tenant_id"
+                    }
+                },
+                "annotations": [],
+                "type": "AzureSqlDatabase",
+                "typeProperties": {
+                    "connectionString": "[parameters('TenantDatabases_connectionString')]"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/TenantData')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "TenantDatabases",
+                    "type": "LinkedServiceReference",
+                    "parameters": {
+                        "DatabaseName": {
+                            "value": "@dataset().DatabaseName",
+                            "type": "Expression"
+                        },
+                        "ServerName": {
+                            "value": "@dataset().ServerName",
+                            "type": "Expression"
+                        },
+                        "TenantID": {
+                            "value": "@dataset().TenantID",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "parameters": {
+                    "SchemaName": {
+                        "type": "string",
+                        "defaultValue": "schema_name"
+                    },
+                    "TableName": {
+                        "type": "string",
+                        "defaultValue": "tbl_name"
+                    },
+                    "DatabaseName": {
+                        "type": "string",
+                        "defaultValue": "db_name"
+                    },
+                    "ServerName": {
+                        "type": "string",
+                        "defaultValue": "srv_name"
+                    },
+                    "TenantID": {
+                        "type": "string",
+                        "defaultValue": "teanat_id"
+                    }
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [],
+                "typeProperties": {
+                    "schema": {
+                        "value": "@dataset().SchemaName",
+                        "type": "Expression"
+                    },
+                    "table": {
+                        "value": "@dataset().TableName",
+                        "type": "Expression"
+                    }
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/TenantDatabases')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/TenantPipeline')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "TenantLookup",
+                        "type": "Lookup",
+                        "dependsOn": [
+                            {
+                                "activity": "CleanupStagingTables",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "sqlReaderQuery": "SELECT * FROM TenantMetadata ORDER BY TenantPriority",
+                                "queryTimeout": "02:00:00",
+                                "isolationLevel": "ReadUncommitted",
+                                "partitionOption": "None"
+                            },
+                            "dataset": {
+                                "referenceName": "TenantMetadata",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "firstRowOnly": false
+                        }
+                    },
+                    {
+                        "name": "ForEachTenant",
+                        "type": "ForEach",
+                        "dependsOn": [
+                            {
+                                "activity": "TenantLookup",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@activity('TenantLookup').output.value",
+                                "type": "Expression"
+                            },
+                            "isSequential": false,
+                            "activities": [
+                                {
+                                    "name": "ExecCopyDatabasePipeline",
+                                    "type": "ExecutePipeline",
+                                    "dependsOn": [],
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "pipeline": {
+                                            "referenceName": "DatabaseCopyPipeline",
+                                            "type": "PipelineReference"
+                                        },
+                                        "waitOnCompletion": false,
+                                        "parameters": {
+                                            "ServerName": {
+                                                "value": "@item().ServerName",
+                                                "type": "Expression"
+                                            },
+                                            "DatabaseName": {
+                                                "value": "@item().DatabaseName",
+                                                "type": "Expression"
+                                            },
+                                            "TenantID": {
+                                                "value": "@item().TenantID",
+                                                "type": "Expression"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "CleanupStagingTables",
+                        "type": "SqlServerStoredProcedure",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "storedProcedureName": "[[dbo].[CleanupStagingSchema]"
+                        },
+                        "linkedServiceName": {
+                            "referenceName": "warehouse",
+                            "type": "LinkedServiceReference"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/TenantMetadata')]",
+                "[concat(variables('factoryId'), '/linkedServices/warehouse')]",
+                "[concat(variables('factoryId'), '/pipelines/DatabaseCopyPipeline')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/warehouse')]",
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Used for connecting to the destination warehouse. No parameterization on this one. ",
+                "annotations": [],
+                "type": "AzureSqlDatabase",
+                "typeProperties": {
+                    "connectionString": "[parameters('warehouse_connectionString')]"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/TenantMetadata')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "warehouse",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [
+                    {
+                        "name": "TenantPriority",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "TenantID",
+                        "type": "nvarchar"
+                    },
+                    {
+                        "name": "ServerName",
+                        "type": "nvarchar"
+                    },
+                    {
+                        "name": "DatabaseName",
+                        "type": "nvarchar"
+                    }
+                ],
+                "typeProperties": {}
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/warehouse')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DatabaseCopyPipeline')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "description": "Copies each table from source database to destination database",
+                "activities": [
+                    {
+                        "name": "LookupTables",
+                        "type": "Lookup",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "7.00:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "sqlReaderQuery": "SELECT * FROM SchemaMetadata WHERE CopyFlag = 1 ORDER BY CopyPriority",
+                                "queryTimeout": "02:00:00",
+                                "isolationLevel": "ReadUncommitted",
+                                "partitionOption": "None"
+                            },
+                            "dataset": {
+                                "referenceName": "TenantMetadata",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            },
+                            "firstRowOnly": false
+                        }
+                    },
+                    {
+                        "name": "ForEachTable",
+                        "type": "ForEach",
+                        "dependsOn": [
+                            {
+                                "activity": "LookupTables",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "typeProperties": {
+                            "items": {
+                                "value": "@activity('LookupTables').output.value",
+                                "type": "Expression"
+                            },
+                            "isSequential": true,
+                            "activities": [
+                                {
+                                    "name": "CopyTable",
+                                    "type": "Copy",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "7.00:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "userProperties": [],
+                                    "typeProperties": {
+                                        "source": {
+                                            "type": "AzureSqlSource",
+                                            "additionalColumns": [
+                                                {
+                                                    "name": "TenantID",
+                                                    "value": {
+                                                        "value": "@pipeline().parameters.TenantID",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            ],
+                                            "queryTimeout": "02:00:00",
+                                            "isolationLevel": "ReadUncommitted",
+                                            "partitionOption": "None"
+                                        },
+                                        "sink": {
+                                            "type": "AzureSqlSink",
+                                            "writeBehavior": "insert",
+                                            "sqlWriterUseTableLock": true,
+                                            "tableOption": "autoCreate",
+                                            "disableMetricsCollection": false
+                                        },
+                                        "enableStaging": false,
+                                        "translator": {
+                                            "type": "TabularTranslator",
+                                            "typeConversion": true,
+                                            "typeConversionSettings": {
+                                                "allowDataTruncation": true,
+                                                "treatBooleanAsNumber": false
+                                            }
+                                        }
+                                    },
+                                    "inputs": [
+                                        {
+                                            "referenceName": "TenantData",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "SchemaName": {
+                                                    "value": "@item().SchemaName",
+                                                    "type": "Expression"
+                                                },
+                                                "TableName": {
+                                                    "value": "@item().TableName",
+                                                    "type": "Expression"
+                                                },
+                                                "DatabaseName": {
+                                                    "value": "@pipeline().parameters.DatabaseName",
+                                                    "type": "Expression"
+                                                },
+                                                "ServerName": {
+                                                    "value": "@pipeline().parameters.ServerName",
+                                                    "type": "Expression"
+                                                },
+                                                "TenantID": {
+                                                    "value": "@pipeline().parameters.TenantID",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "outputs": [
+                                        {
+                                            "referenceName": "StagingData",
+                                            "type": "DatasetReference",
+                                            "parameters": {
+                                                "StagingTable": {
+                                                    "value": "@item().TableName",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {},
+                    "cancelAfter": {}
+                },
+                "parameters": {
+                    "ServerName": {
+                        "type": "string"
+                    },
+                    "DatabaseName": {
+                        "type": "string"
+                    },
+                    "TenantID": {
+                        "type": "string"
+                    }
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/TenantMetadata')]",
+                "[concat(variables('factoryId'), '/datasets/TenantData')]",
+                "[concat(variables('factoryId'), '/datasets/StagingData')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/StagingData')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "warehouse",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "StagingTable": {
+                        "type": "string",
+                        "defaultValue": "StagingTable"
+                    }
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [],
+                "typeProperties": {
+                    "schema": "staging",
+                    "table": {
+                        "value": "@dataset().StagingTable",
+                        "type": "Expression"
+                    }
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/warehouse')]"
+            ]
+        }
+    ]
+}
