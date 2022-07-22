@@ -5,7 +5,7 @@ This demo is designed to highlight one way to build multi-tenant, reusable pipel
 ## Demo setup guidance
 
 ### Deploy Azure resources
-Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group.
+Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group. I recommend that you deploy using the supplied arm template located in this repository at __arm_template/resources-arm.json__ alternatively you can follow the steps below.
 
 1. Deploy source databases. For this demo I deployed three Azure SQL Databases with the sample database. These are all hosted from the same Logical SQL Server. I use the S2 tier during the demo but scale down to S1 when I am not actively using it. I also enable both SQL Authentication and Azure AD Authentication. The pipeline will use SQL Authentication so for ease of use I would use the same admin account for all of your databases. The best practice security wise would be to use a Managed Identity in Data Factory and grant access to SQL databases. Also make sure that your databsases are using a public endpoint for this demo.
 
@@ -25,9 +25,9 @@ Please read and understand the entire step before trying to execute. All resourc
 
 5. Now choose the __resource group__ and __region__ that you are deploying into, update the __Factory Name__ to reflect your data factory name. There are two connection strings you will need to populate. Below are examples of what these should look like (without the quotes). The highlighted values below will need to be updated to reflect your logins and server names.
 
-    __Tenant Databases_connectionString =__ "integrated security=False;encrypt=True;connection timeout=30;data source=@{linkedService().ServerName};initial catalog=@{linkedService().DatabaseName};user id=`dblogin`"
+    __Tenant Databases_connectionString =__ integrated security=False;encrypt=True;connection timeout=30;data source=@{linkedService().ServerName};initial catalog=@{linkedService().DatabaseName};user id=`dblogin`
 
-    __Warehouse_connectionString =__ "integrated security=False;encrypt=True;connection timeout=30;data source=`db-host`.database.windows.net;initial catalog=`warehouse-multi-tenant`;user id=`warehouselogin`"
+    __Warehouse_connectionString =__ integrated security=False;encrypt=True;connection timeout=30;data source=`db-host`.database.windows.net;initial catalog=`warehouse-multi-tenant`;user id=`warehouselogin`
 
     > __Note__: The tenant database connection string is parameterized for the data source and initial catalog values. The pipeline will automatically fill in these values at run time.
 
