@@ -25,7 +25,7 @@ Please read and understand the entire step before trying to execute. All resourc
 
 5. Now choose the __resource group__ and __region__ that you are deploying into, update the __Factory Name__ to reflect your data factory name. There are two connection strings you will need to populate. Below are examples of what these should look like (without the quotes). The highlighted values below will need to be updated to reflect your logins and server names.
 
-    __Tenant Databases_connectionString =__ "integrated security=False;encrypt=True;connection timeout=30;data source=@{linkedService().ServerName};initial catalog=@{linkedService().DatabaseName};user id=<span style="background-color: #FFFF00">dblogin</span>"
+    __Tenant Databases_connectionString =__ "integrated security=False;encrypt=True;connection timeout=30;data source=@{linkedService().ServerName};initial catalog=@{linkedService().DatabaseName};user id=`dblogin`"
 
     __Warehouse_connectionString =__ "integrated security=False;encrypt=True;connection timeout=30;data source=<span style="background-color: #FFFF00">db-host</span>.database.windows.net;initial catalog=<span style="background-color: #FFFF00">warehouse-multi-tenant</span>;user id=<span style="background-color: #FFFF00">warehouselogin</span>"
 
@@ -40,14 +40,16 @@ This solution leverage the use of metadata tables in the destination database to
 
 2. Open the __SQL Queries\meta-driven-pipeline.sql__ file in a text editor. You WILL need to update the insert statements for the TenantMetadata table with the correct ServerNames and DatabaseNames for your environment. The parts you must changed are highlighted below.
 
-    INSERT INTO TenantMetadata
-VALUES (1, N'tenant1', N'<span style="background-color: #FFFF00">db-host</span>.database.windows.net', N'<span style="background-color: #FFFF00">db-tenant1</span>');
 
     INSERT INTO TenantMetadata
-VALUES (2, N'tenant2', N'<span style="background-color: #FFFF00">db-host</span>.database.windows.net', N'<span style="background-color: #FFFF00">db-tenant2</span>');
+    VALUES (1, N'tenant1', N'<span style="background-color: #FFFF00">db-host</span>.database.windows.net', N'<span style="background-color: #FFFF00">db-tenant1</span>');
+
+    INSERT INTO TenantMetadata
+    VALUES (2, N'tenant2', N'<span style="background-color: #FFFF00">db-host</span>.database.windows.net', N'<span style="background-color: #FFFF00">db-tenant2</span>');
 
     INSERT INTO TenantMetadata
 VALUES (3, N'tenant3', N'<span style="background-color: #FFFF00">db-host</span>.database.windows.net', N'<span style="background-color: #FFFF00">db-tenant3</span>');
+
 
 3. The rest of the script may remain as-is. I have added a couple of tips on getting started with indexing for these tables. Keep in mind, if you have a small number of rows, indexing will not matter. So, the indexing is basically academic for the purposes of the demo but might be helpfull in some cases where you have larger numbers of rows (see the comments in the script).
 
