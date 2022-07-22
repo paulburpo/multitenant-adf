@@ -27,7 +27,7 @@ Please read and understand the entire step before trying to execute. All resourc
 
     __Tenant Databases_connectionString =__ "integrated security=False;encrypt=True;connection timeout=30;data source=@{linkedService().ServerName};initial catalog=@{linkedService().DatabaseName};user id=`dblogin`"
 
-    __Warehouse_connectionString =__ "integrated security=False;encrypt=True;connection timeout=30;data source=<span style="background-color: #FFFF00">db-host</span>.database.windows.net;initial catalog=<span style="background-color: #FFFF00">warehouse-multi-tenant</span>;user id=<span style="background-color: #FFFF00">warehouselogin</span>"
+    __Warehouse_connectionString =__ "integrated security=False;encrypt=True;connection timeout=30;data source=`db-host`.database.windows.net;initial catalog=`warehouse-multi-tenant`;user id=`warehouselogin`"
 
     > __Note__: The tenant database connection string is parameterized for the data source and initial catalog values. The pipeline will automatically fill in these values at run time.
 
@@ -42,13 +42,13 @@ This solution leverage the use of metadata tables in the destination database to
 
 
     INSERT INTO TenantMetadata
-    VALUES (1, N'tenant1', N'<span style="background-color: #FFFF00">db-host</span>.database.windows.net', N'<span style="background-color: #FFFF00">db-tenant1</span>');
+    VALUES (1, N'tenant1', N'`db-host`.database.windows.net', N'`db-tenant1`');
 
     INSERT INTO TenantMetadata
-    VALUES (2, N'tenant2', N'<span style="background-color: #FFFF00">db-host</span>.database.windows.net', N'<span style="background-color: #FFFF00">db-tenant2</span>');
+    VALUES (2, N'tenant2', N'`db-host`.database.windows.net', N'`db-tenant2`');
 
     INSERT INTO TenantMetadata
-VALUES (3, N'tenant3', N'<span style="background-color: #FFFF00">db-host</span>.database.windows.net', N'<span style="background-color: #FFFF00">db-tenant3</span>');
+VALUES (3, N'tenant3', N'`db-host`.database.windows.net', N'`db-tenant3`');
 
 
 3. The rest of the script may remain as-is. I have added a couple of tips on getting started with indexing for these tables. Keep in mind, if you have a small number of rows, indexing will not matter. So, the indexing is basically academic for the purposes of the demo but might be helpfull in some cases where you have larger numbers of rows (see the comments in the script).
