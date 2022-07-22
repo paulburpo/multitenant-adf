@@ -1,23 +1,29 @@
-# multitenant-adf demo 
+# Multi-tenant Data Factory Demo 
 
-This demo is designed to highlight one way to build multi-tenant, reusable pipelines. It is not intended to be best practice for every possible feature and it is especially NOT following best practice for security. 
+This demo is provided as-is and is not supported in any way by me or Microsoft. It has been tested on serval different types of subscriptions but there may be deployment issues in some regions or some subscription types. Feel free to provide feedback but I can not guarantee that it will be addressed.
 
-## Demo setup guidance
+Success in implementing this demo is reliant on you having some basic knowledge around Azure, Azure SQL Database and Azure Data Factory. If you need training, you should take training. 
+
+The demo is designed to highlight one way in one scenario to build multi-tenant, reusable pipelines. It is not intended to be best practice for every possible feature or scenario and it is especially NOT following best practice for security. READ: Do not implement production security like this demo.
+
+## Demo Guide
 
 ### Deploy Azure resources
-Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group. I recommend that you deploy using the supplied arm template located in this repository at __arm_template/resources-arm.json__ alternatively you can follow the steps below.
+Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group. __I highly recommend that you deploy using the supplied arm template located in this repository at ___./arm_template/resources-arm.json.___ Alternatively you can follow the steps and guidance below. The provided arm template deploys everything as described below.__
 
-1. Deploy source databases. For this demo I deployed three Azure SQL Databases with the sample database. These are all hosted from the same Logical SQL Server. I use the S2 tier during the demo but scale down to S1 when I am not actively using it. I also enable both SQL Authentication and Azure AD Authentication. The pipeline will use SQL Authentication so for ease of use I would use the same admin account for all of your databases. The best practice security wise would be to use a Managed Identity in Data Factory and grant access to SQL databases. Also make sure that your databsases are using a public endpoint for this demo.
+1. Deploy source databases. For this demo I deployed three Azure SQL Databases with the sample database. These are all hosted from the same Logical SQL Server. I use the S2 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. The pipeline will use SQL Authentication so for ease of use I would use the same admin account for all of your databases. The best practice security wise would be to use a Managed Identity in Data Factory and grant access to SQL databases. Also make sure that your databases are using a public endpoint for this demo.
 
-2. Deploy the destination data warehouse. For this I deployed one Azure SQL Database. It is hosted on the same Logical SQL Server as the source databases. I use the S3 tier during the demo but scale down to S1 when I am not actively using it. I also enable both SQL Authentication and Azure AD Authentication. I created the same admin account as the source databases, again, not best practice, it is just so I dont have to memorize a bunch of user names and passwords. Also make sure that your databsases are using a public endpoint for this demo.
+2. Deploy the destination data warehouse. For this I deployed one Azure SQL Database. It is hosted on the same Logical SQL Server as the source databases. I use the S3 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. I created the same admin account as the source databases, again, not best practice, it is just so I do'nt have to memorize a bunch of user names and passwords. Also make sure that your databases are using a public endpoint for this demo.
 
 3. Deploy Azure Data Factory. Nothing to really point out here. If you cannot figure out how to do this, maybe this whole computer thing isn't for you.
 
 ### Deploy the ARM pipeline ARM template
 
+> __Note__: This step is required. This step is not covered in the previous arm template deployment. The previous section is for deploying Azure resources while this step deploys your Data Factory Pipeline.
+
 1. Open Azure Data Factory in the Azure Portal and click on __Open Azure Data Factory Studio__. 
 
-2. Select the __Manage__ icon on the left, choose __ARM template__, and select __Import ARM tempate__. This should launch the __Custom deployment__ page in the Azure portal.
+2. Select the __Manage__ icon on the left, choose __ARM template__, and select __Import ARM template__. This should launch the __Custom deployment__ page in the Azure portal.
 
 3. Select __Build your own template in the editor__ and leave it open for now.
 
@@ -51,7 +57,7 @@ This solution leverage the use of metadata tables in the destination database to
 VALUES (3, N'tenant3', N'`db-host`.database.windows.net', N'`db-tenant3`');
 
 
-3. The rest of the script may remain as-is. I have added a couple of tips on getting started with indexing for these tables. Keep in mind, if you have a small number of rows, indexing will not matter. So, the indexing is basically academic for the purposes of the demo but might be helpfull in some cases where you have larger numbers of rows (see the comments in the script).
+3. The rest of the script may remain as-is. I have added a couple of tips on getting started with indexing for these tables. Keep in mind, if you have a small number of rows, indexing will not matter. So, the indexing is basically academic for the purposes of the demo but might be helpful in some cases where you have larger numbers of rows (see the comments in the script).
 
 4. Generate the cleanup script by copying the contents of the __SQL Queries\CleanupSchema.sql__ file into the query editor and running it. No customizations are necessary.
 
@@ -59,7 +65,7 @@ VALUES (3, N'tenant3', N'`db-host`.database.windows.net', N'`db-tenant3`');
 
 ### Configure your pipeline
 
-1. To run the pipeline you will need to suppy passwords for the linked services. Linked services hold the connection information for your sources and destinations. From the Azure Data Factory Studio, navigate to __Manage__->__Linked Services__->__TenantDatabases__. Update the __User name__ and __Password__ to match your source databases. 
+1. To run the pipeline you will need to supply passwords for the linked services. Linked services hold the connection information for your sources and destinations. From the Azure Data Factory Studio, navigate to __Manage__->__Linked Services__->__TenantDatabases__. Update the __User name__ and __Password__ to match your source databases. 
 
     >__Note__: At this point the __Test connection__ will not work for this linked service without you manually updating the values for the __Fully qualified domain name ***@{linkedService().ServerName}***__ and the __DatabaseName ***@{linkedService().DatabaseName}***__ parameters. If you scroll down on the__Edit linked service__ blade, you should see a parameters section with the parameterized values we are using. So if you want to test the connect, there will be a popout allowing you to provide those parameters manually (you may leave tenant-id set to the default for connection testing. When we run the pipeline, these parameterized values will be automatically populated from the tables we created earlier.
 
@@ -69,17 +75,17 @@ VALUES (3, N'tenant3', N'`db-host`.database.windows.net', N'`db-tenant3`');
 
 4. If you have changes to publish, click the __Publish all__ button.
 
-### Understanding the pipelines, acitivities, datasets and linked services
+### Understanding the pipelines, activities, datasets and linked services
 
 This solution contains two pipelines and three datasets. Each will be described in detail below. 
 
-The first pipeline is the __TenantPipeline__. This is the master pipeline. When running the demo, it is only necessary to trigger this pipeline, all other components of the demo are automatted.
+The first pipeline is the __TenantPipeline__. This is the master pipeline. When running the demo, it is only necessary to trigger this pipeline, all other components of the demo are automated.
 
 The __TenantPipeline__ consists of four activities described below.
 
 1. The __CleanupStagingTables__ stored procedure activity. This activity simply connects to the warehouse database and cleans up the staging tables and schema by calling the dbo.CleanupStagingSchema stored procedure. Everything here is hardcoded. If you are implementing your own stored procedure here, the only thing to be aware of, is that you typically want this activity to be idempotent. So if it runs, and there is nothing to cleanup, it still completes with success. Likewise, if it runs and does have to cleanup tables and schemas, it also completes with success.
 
-2. The __TenantLookup__ lookup activity. This activity is responsible for pulling the list of tenants by running the ___SELECT * FROM TenantMetadata ORDER BY TenantPriority___ query in the warehouse databse. There is no parameterization in this activity but the output which will be passed on to the next activity is JSON formatted with the results of the query that will look something like this:  
+2. The __TenantLookup__ lookup activity. This activity is responsible for pulling the list of tenants by running the ___SELECT * FROM TenantMetadata ORDER BY TenantPriority___ query in the warehouse database. There is no parameterization in this activity but the output which will be passed on to the next activity is JSON formatted with the results of the query that will look something like this:  
     ```json
     {
     "count": 3,
@@ -108,7 +114,7 @@ The __TenantPipeline__ consists of four activities described below.
 
     >__Note__: In many production workloads, these metadata tables would be in a dedicated config database, especially if you have lots of rows, or lots of pipelines leveraging the tables, or if the source and or destination databases are in another region.
 
-3. The next activity is the __ForEachTenant__ ForEach activity. If you select this activity, then choose the __Settings__ tab, you will see that under __Items__ we have added dynamic content representing the output of the previous lookup activity. The value is ___@activity('TenantLookup').ouput.value___. If you delete this item, click in the empty field and choose the __Add dynamic content__ link you will get a popup showing you all of the accessible options for dynamic content. Choose __TenantLookup value array__, which will give you the entire array of results from your lookup. The ForEach activity will then iterate through each element of the array. Note that ForEach loops are not recursive so nested arrays will not processed by the loop.
+3. The next activity is the __ForEachTenant__ ForEach activity. If you select this activity, then choose the __Settings__ tab, you will see that under __Items__ we have added dynamic content representing the output of the previous lookup activity. The value is ___@activity('TenantLookup').output.value___. If you delete this item, click in the empty field and choose the __Add dynamic content__ link you will get a popup showing you all of the accessible options for dynamic content. Choose __TenantLookup value array__, which will give you the entire array of results from your lookup. The ForEach activity will then iterate through each element of the array. Note that ForEach loops are not recursive so nested arrays will not processed by the loop.
 
     On the __Settings__ tab of your __ForEachTenant__ activity, notice there is a __Sequential__ checkbox. Enabling this allows your loop to process only one iteration at a time. In this condition, the loop will wait for the iteration to complete until the next one begins. The default behavior is is for the iterations to all run as soon as possible. Since we would like to process all tenants in parallel, we have left this option disabled.
 
@@ -116,7 +122,7 @@ The __TenantPipeline__ consists of four activities described below.
 
 5. Open the __DatabaseCopyPipeline__ under the Factory Resources menu. This pipeline is responsible for collecting the list of tables that we want to copy from each source and then copying each of those tables to the warehouse staging tables. Notice that on the __Parameters__ tab, we have the same parameters that we had in our Execute Pipeline activity. These parameters will be populated by the calling pipeline.
 
-6. The __LookupTables__ lookup activity. This activity is responsible for pulling the list of tables we would like to copy from the source databases by running the ___SELECT * FROM SchemaMetadata WHERE CopyFlag = 1 ORDER BY CopyPriority___ query in the warehouse databse. The ORDER BY on the __CopyPriority__ column allows us to copy tables in a certain order if necessary by changing the values in the table. The __SchemaName__ and __TableName__ columns should be self-explanitory. The __CopyFlag__ is not used in the demo but it could be used to allow the exclusion of certain tables from the copy process by filtering on this column. There is no parameterization in this activity but the output which will be passed on to the next activity is JSON formatted with the results of the query that will look something like this:
+6. The __LookupTables__ lookup activity. This activity is responsible for pulling the list of tables we would like to copy from the source databases by running the ___SELECT * FROM SchemaMetadata WHERE CopyFlag = 1 ORDER BY CopyPriority___ query in the warehouse database. The ORDER BY on the __CopyPriority__ column allows us to copy tables in a certain order if necessary by changing the values in the table. The __SchemaName__ and __TableName__ columns should be self-explanitory. The __CopyFlag__ is not used in the demo but it could be used to allow the exclusion of certain tables from the copy process by filtering on this column. There is no parameterization in this activity but the output which will be passed on to the next activity is JSON formatted with the results of the query that will look something like this:
     ```json
     {
     "count": 10,
@@ -185,7 +191,7 @@ The __TenantPipeline__ consists of four activities described below.
     }
     ```
 
-7. The next activity is the __ForEachTable__ ForEach activity. If you select this activity, then choose the __Settings__ tab, you will see that under __Items__ we have added dynamic content representing the output of the previous lookup activity. The value is ___@activity('LookupTables').ouput.value___. Notice that on this ForEach loop we have chosen to make the loop sequential so that we only copy one table at a time. This is not strictly necessary as we have no referrential integrity being enforced on the destination tables but in cases where you do this can be used to load tables in the correct order. 
+7. The next activity is the __ForEachTable__ ForEach activity. If you select this activity, then choose the __Settings__ tab, you will see that under __Items__ we have added dynamic content representing the output of the previous lookup activity. The value is ___@activity('LookupTables').output.value___. Notice that on this ForEach loop we have chosen to make the loop sequential so that we only copy one table at a time. This is not strictly necessary as we have no referential integrity being enforced on the destination tables but in cases where you do this can be used to load tables in the correct order. 
 
 8. Finally we have the __CopyTable__ activity. This copy data activity is what actually moves data from the source to the destination. 
 
