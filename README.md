@@ -69,7 +69,7 @@ VALUES (3, N'tenant3', N'`db-host`.database.windows.net', N'`db-tenant3`');
 
 4. If you have changes to publish, click the __Publish all__ button.
 
-### Understanding and running the pipelines
+### Understanding the pipelines, acitivities, datasets and linked services
 
 This solution contains two pipelines and three datasets. Each will be described in detail below. 
 
@@ -112,4 +112,95 @@ The __TenantPipeline__ consists of four activities described below.
 
     On the __Settings__ tab of your __ForEachTenant__ activity, notice there is a __Sequential__ checkbox. Enabling this allows your loop to process only one iteration at a time. In this condition, the loop will wait for the iteration to complete until the next one begins. The default behavior is is for the iterations to all run as soon as possible. Since we would like to process all tenants in parallel, we have left this option disabled.
 
-4. Within your __ForEachTenant__ activity you have the __ExecCopyDatabasePipeline__ activity. This is an an Execute Pipeline activity. We are using it to execute the Database Copy Pipeline for each tenant. If you open the __ExecCopyDatabasePipeline__ activity and click on the __Settings__ tab, you will see the name of the invoked pipeline. You will also notice that we have defined three parameters here; __ServerName__, __DatabaseName__ and __TenantID__. If you delete one of these items and then click the __Add dynamic content__ link, you will be taken to the add dynamic content popup. Choose __ForEachTenant__ under the __ForEach iterator__ section. This will show __@item()__ in the editing box. But the item that we are iterating on is actually an array with one element for each column. So to properly assign the value from the array to the parameter type ".column-name" replacing column-name with the name of the parameter you deleted, your line should look something like this __@item().ServerName__. Click __OK__, then publish any changes.
+4. Within your __ForEachTenant__ activity you have the __ExecCopyDatabasePipeline__ activity. This is an an Execute Pipeline activity. We are using it to execute the DatabaseCopyPipeline for each tenant. If you open the __ExecCopyDatabasePipeline__ activity and click on the __Settings__ tab, you will see the name of the invoked pipeline. You will also notice that we have defined three parameters here; __ServerName__, __DatabaseName__ and __TenantID__. These parameters will be passed into the invoked pipeline. If you delete one of these items and then click the __Add dynamic content__ link, you will be taken to the add dynamic content popup. Choose __ForEachTenant__ under the __ForEach iterator__ section. This will show __@item()__ in the editing box. But the item that we are iterating on is actually an array with one element for each column. So to properly assign the value from the array to the parameter type ___.column-name___ replacing column-name with the name of the parameter you deleted, your line should look something like this ___@item().ServerName___. Click __OK__, then publish any changes.
+
+5. Open the __DatabaseCopyPipeline__ under the Factory Resources menu. This pipeline is responsible for collecting the list of tables that we want to copy from each source and then copying each of those tables to the warehouse staging tables. Notice that on the __Parameters__ tab, we have the same parameters that we had in our Execute Pipeline activity. These parameters will be populated by the calling pipeline.
+
+6. The __LookupTables__ lookup activity. This activity is responsible for pulling the list of tables we would like to copy from the source databases by running the ___SELECT * FROM SchemaMetadata WHERE CopyFlag = 1 ORDER BY CopyPriority___ query in the warehouse databse. The ORDER BY on the __CopyPriority__ column allows us to copy tables in a certain order if necessary by changing the values in the table. The __SchemaName__ and __TableName__ columns should be self-explanitory. The __CopyFlag__ is not used in the demo but it could be used to allow the exclusion of certain tables from the copy process by filtering on this column. There is no parameterization in this activity but the output which will be passed on to the next activity is JSON formatted with the results of the query that will look something like this:
+    ```json
+    {
+    "count": 10,
+    "value": [
+        {
+            "CopyPriority": 1,
+            "SchemaName": "SalesLT",
+            "TableName": "Address",
+            "CopyFlag": true
+        },
+        {
+            "CopyPriority": 2,
+            "SchemaName": "SalesLT",
+            "TableName": "Customer",
+            "CopyFlag": true
+        },
+        {
+            "CopyPriority": 3,
+            "SchemaName": "SalesLT",
+            "TableName": "CustomerAddress",
+            "CopyFlag": true
+        },
+        {
+            "CopyPriority": 4,
+            "SchemaName": "SalesLT",
+            "TableName": "ProductCategory",
+            "CopyFlag": true
+        },
+        {
+            "CopyPriority": 5,
+            "SchemaName": "SalesLT",
+            "TableName": "ProductModel",
+            "CopyFlag": true
+        },
+        {
+            "CopyPriority": 6,
+            "SchemaName": "SalesLT",
+            "TableName": "ProductDescription",
+            "CopyFlag": true
+        },
+        {
+            "CopyPriority": 7,
+            "SchemaName": "SalesLT",
+            "TableName": "ProductModelProductDescription",
+            "CopyFlag": true
+        },
+        {
+            "CopyPriority": 8,
+            "SchemaName": "SalesLT",
+            "TableName": "Product",
+            "CopyFlag": true
+        },
+        {
+            "CopyPriority": 9,
+            "SchemaName": "SalesLT",
+            "TableName": "SalesOrderHeader",
+            "CopyFlag": true
+        },
+        {
+            "CopyPriority": 10,
+            "SchemaName": "SalesLT",
+            "TableName": "SalesOrderDetail",
+            "CopyFlag": true
+        }
+    ]
+    }
+    ```
+
+7. The next activity is the __ForEachTable__ ForEach activity. If you select this activity, then choose the __Settings__ tab, you will see that under __Items__ we have added dynamic content representing the output of the previous lookup activity. The value is ___@activity('LookupTables').ouput.value___. Notice that on this ForEach loop we have chosen to make the loop sequential so that we only copy one table at a time. This is not strictly necessary as we have no referrential integrity being enforced on the destination tables but in cases where you do this can be used to load tables in the correct order. 
+
+8. Finally we have the __CopyTable__ activity. This copy data activity is what actually moves data from the source to the destination. 
+
+    Open the __CopyTable__ activity and select the __Source__ tab. Here we define the source dataset __TenantData__ that we will copy data from. __TenantData__ is a parameterized dataset that in turn uses the __TenantDatabases__ parameterized Linked Service. You can see the list of dataset properties that we are using here. The __SchemaName__ and __TableName__ properties are being populated by values from our lookup and __DatabaseName__, __ServerName__ and __TenantID__ are pipeline parameters that were passed in via the execute pipeline activity in the __TenantPipeline__.
+
+    If you scroll to the bottom of the __Source__ tab you will notice a section called __Additional columns__. This adds a new column to every table and populates it with the __TenantID__ pipeline parameter. This allows us to differentiate similar rows in the warehouse that belong to different tenants. For example, if two tenants have an order with the same orderID, you would need a way to differentiate one from the other. 
+
+    Now move to the __Sink__ tab. Here we are copying data into the __StagingData__ dataset. It takes one parameter, __StagingTable__, which is populated with the __TableName__ value passed in during the lookup. If you open the dataset you will see that we are using the __warehouse__ linked service. For the table, we have hard coded the schema to __staging__ and are using the dataset property __StagingTable__ for the table name. 
+
+### Running the pipeline
+
+1. If you have any unpublished changes, publish them now.
+
+2. Navigate to the __TenantPipeline__. Remember this is our master pipeline and as such we kick off our copy process from here. This pipeline takes no input from the user, it will collect all the information it needs to complete the copy from our metadata tables.
+
+3. Click the __Add trigger__ button and choose __Trigger now__ from the dropdown and click __OK__ on the popup. 
+
+You can monitor the progress of the pipelines by selecting the __Monitor__ tab on the left menu. The time it takes to complete will depend on the scale of your databases (especially the destination). If you pipeline is not making progress, click the refresh button near the top of the page.
