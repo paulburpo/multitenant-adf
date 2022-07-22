@@ -1,0 +1,295 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "DataFactoryName": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "SqlServerName": {
+            "type": "string",
+            "defaultValue": ""
+        },        "administratorLogin": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "administratorLoginPassword": {
+            "type": "securestring",
+            "defaultValue": ""
+        },
+        "databaseName1": {
+            "type": "string",
+            "defaultValue": "db-tenant1"
+        },
+        "databaseName2": {
+            "type": "string",
+            "defaultValue": "db-tenant2"
+        },
+        "databaseName3": {
+            "type": "string",
+            "defaultValue": "db-tenant3"
+        },
+        "databaseName4": {
+            "type": "string",
+            "defaultValue": "warehouse-multi-tenant"
+        },
+        "tier": {
+            "type": "string",
+            "defaultValue": "Standard"
+        },
+        "skuName": {
+            "type": "string",
+            "defaultValue": "S0"
+        },
+        "maxSizeBytes": {
+            "type": "int",
+            "defaultValue": 268435456000
+        },
+        "sampleName": {
+            "type": "string",
+            "defaultValue": "AdventureWorksLT"
+        },
+        "zoneRedundant": {
+            "type": "bool",
+            "defaultValue": false
+        },
+        "readScaleOut": {
+            "type": "string",
+            "defaultValue": "Disabled"
+        },
+        "allowAzureIps": {
+            "type": "bool",
+            "defaultValue": true
+        },
+        "allowClientIp": {
+            "type": "bool",
+            "defaultValue": false
+        },
+        "publicNetworkAccess": {
+            "type": "string",
+            "defaultValue": "Enabled"
+        },
+        "requestedBackupStorageRedundancy": {
+            "type": "string",
+            "defaultValue": "Local"
+        },
+        "minimalTlsVersion": {
+            "type": "string",
+            "defaultValue": "1.2"
+        },
+        "enableSqlLedger": {
+            "type": "bool",
+            "defaultValue": false
+        },
+        "connectionType": {
+            "type": "string",
+            "defaultValue": "Default"
+        },
+        "collation": {
+            "type": "string",
+            "defaultValue": "SQL_Latin1_General_CP1_CI_AS"
+        },
+        "version": {
+            "defaultValue": "V2",
+            "type": "string"
+        },
+        "vNetEnabled": {
+            "defaultValue": false,
+            "type": "bool"
+        },
+        "ADFpublicNetworkAccess": {
+            "defaultValue": true,
+            "type": "bool"
+        },
+        "gitConfigureLater": {
+            "defaultValue": true,
+            "type": "bool"
+        },
+        "enableCMK": {
+            "defaultValue": false,
+            "type": "bool"
+        }
+    },
+    "resources": [
+        {
+            "condition": "[equals(parameters('version'), 'V2')]",
+            "type": "Microsoft.DataFactory/factories",
+            "apiVersion": "2018-06-01",
+            "name": "[parameters('DataFactoryName')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "repoConfiguration": "[if(bool(parameters('gitConfigureLater')), json('null'), json(concat('{\"type\": \"', parameters('gitRepoType'), '\",','\"accountName\": \"', parameters('gitAccountName'), '\",','\"repositoryName\": \"', parameters('gitRepositoryName'), '\",', if(equals(parameters('gitRepoType'), 'FactoryVSTSConfiguration'), concat('\"projectName\": \"', parameters('gitProjectName'), '\",'), ''),'\"collaborationBranch\": \"', parameters('gitCollaborationBranch'), '\",','\"rootFolder\": \"', parameters('gitRootFolder'), '\"}')))]",
+                "publicNetworkAccess": "[if(bool(parameters('ADFpublicNetworkAccess')), 'Enabled', 'Disabled')]",
+                "encryption": "[if(parameters('enableCMK'), json(concat('{\"identity\":{\"userAssignedIdentity\":\"', parameters('cmkIdentity'), '\"},','\"VaultBaseUrl\": \"', parameters('vaultBaseUrl'), '\",','\"KeyName\": \"', parameters('keyName'), '\",','\"KeyVersion\": \"', parameters('keyVersion'), '\"}')), json('null'))]"
+            },
+            "resources": [
+                {
+                    "condition": "[and(equals(parameters('version'), 'V2'), parameters('vNetEnabled'))]",
+                    "name": "[concat(parameters('DataFactoryName'), '/default')]",
+                    "type": "Microsoft.DataFactory/factories/managedVirtualNetworks",
+                    "apiVersion": "2018-06-01",
+                    "properties": {},
+                    "dependsOn": [
+                        "[concat('Microsoft.DataFactory/factories/', parameters('DataFactoryName'))]"
+                    ]
+                },
+                {
+                    "condition": "[and(equals(parameters('version'), 'V2'), parameters('vNetEnabled'))]",
+                    "name": "[concat(parameters('DataFactoryName'), '/AutoResolveIntegrationRuntime')]",
+                    "type": "Microsoft.DataFactory/factories/integrationRuntimes",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "type": "Managed",
+                        "managedVirtualNetwork": {
+                            "referenceName": "default",
+                            "type": "ManagedVirtualNetworkReference"
+                        },
+                        "typeProperties": {
+                            "computeProperties": {
+                                "location": "AutoResolve"
+                            }
+                        }
+                    },
+                    "dependsOn": [
+                        "[concat('Microsoft.DataFactory/factories/', parameters('DataFactoryName'))]",
+                        "[concat('Microsoft.DataFactory/factories/', parameters('DataFactoryName'), '/managedVirtualNetworks/default')]"
+                    ]
+                }
+            ]
+        },
+        {
+            "apiVersion": "2021-05-01-preview",
+            "type": "Microsoft.Sql/servers",
+            "location": "[variables('location')]",
+            "name": "[parameters('SqlServerName')]",
+            "properties": {
+                "version": "12.0",
+                "minimalTlsVersion": "[parameters('minimalTlsVersion')]",
+                "publicNetworkAccess": "[parameters('publicNetworkAccess')]",
+                "administratorLogin": "[parameters('administratorLogin')]",
+                "administratorLoginPassword": "[parameters('administratorLoginPassword')]"
+            },
+            "resources": [
+                {
+                    "apiVersion": "2021-02-01-preview",
+                    "dependsOn": [
+                        "[concat('Microsoft.Sql/servers/', parameters('SqlServerName'))]"
+                    ],
+                    "location": "[variables('location')]",
+                    "name": "[parameters('databaseName1')]",
+                    "properties": {
+                        "collation": "[parameters('collation')]",
+                        "maxSizeBytes": "[parameters('maxSizeBytes')]",
+                        "sampleName": "[parameters('sampleName')]",
+                        "zoneRedundant": "[parameters('zoneRedundant')]",
+                        "readScale": "[parameters('readScaleOut')]",
+                        "requestedBackupStorageRedundancy": "[parameters('requestedBackupStorageRedundancy')]",
+                        "isLedgerOn": "[parameters('enableSqlLedger')]"
+                    },
+                    "sku": {
+                        "name": "[parameters('skuName')]",
+                        "tier": "[parameters('tier')]"
+                    },
+                    "type": "databases"
+                },
+                {
+                    "apiVersion": "2021-02-01-preview",
+                    "dependsOn": [
+                        "[concat('Microsoft.Sql/servers/', parameters('SqlServerName'))]"
+                    ],
+                    "location": "[variables('location')]",
+                    "name": "[parameters('databaseName2')]",
+                    "properties": {
+                        "collation": "[parameters('collation')]",
+                        "maxSizeBytes": "[parameters('maxSizeBytes')]",
+                        "sampleName": "[parameters('sampleName')]",
+                        "zoneRedundant": "[parameters('zoneRedundant')]",
+                        "readScale": "[parameters('readScaleOut')]",
+                        "requestedBackupStorageRedundancy": "[parameters('requestedBackupStorageRedundancy')]",
+                        "isLedgerOn": "[parameters('enableSqlLedger')]"
+                    },
+                    "sku": {
+                        "name": "[parameters('skuName')]",
+                        "tier": "[parameters('tier')]"
+                    },
+                    "type": "databases"
+                },
+                {
+                    "apiVersion": "2021-02-01-preview",
+                    "dependsOn": [
+                        "[concat('Microsoft.Sql/servers/', parameters('SqlServerName'))]"
+                    ],
+                    "location": "[variables('location')]",
+                    "name": "[parameters('databaseName3')]",
+                    "properties": {
+                        "collation": "[parameters('collation')]",
+                        "maxSizeBytes": "[parameters('maxSizeBytes')]",
+                        "sampleName": "[parameters('sampleName')]",
+                        "zoneRedundant": "[parameters('zoneRedundant')]",
+                        "readScale": "[parameters('readScaleOut')]",
+                        "requestedBackupStorageRedundancy": "[parameters('requestedBackupStorageRedundancy')]",
+                        "isLedgerOn": "[parameters('enableSqlLedger')]"
+                    },
+                    "sku": {
+                        "name": "[parameters('skuName')]",
+                        "tier": "[parameters('tier')]"
+                    },
+                    "type": "databases"
+                },
+                {
+                    "apiVersion": "2021-02-01-preview",
+                    "dependsOn": [
+                        "[concat('Microsoft.Sql/servers/', parameters('SqlServerName'))]"
+                    ],
+                    "location": "[variables('location')]",
+                    "name": "[parameters('databaseName4')]",
+                    "properties": {
+                        "collation": "[parameters('collation')]",
+                        "maxSizeBytes": "[parameters('maxSizeBytes')]",
+                        "zoneRedundant": "[parameters('zoneRedundant')]",
+                        "readScale": "[parameters('readScaleOut')]",
+                        "requestedBackupStorageRedundancy": "[parameters('requestedBackupStorageRedundancy')]",
+                        "isLedgerOn": "[parameters('enableSqlLedger')]"
+                    },
+                    "sku": {
+                        "name": "[parameters('skuName')]",
+                        "tier": "[parameters('tier')]"
+                    },
+                    "type": "databases"
+                },
+                {
+                    "condition": "[parameters('allowAzureIps')]",
+                    "apiVersion": "2014-04-01-preview",
+                    "dependsOn": [
+                        "[concat('Microsoft.Sql/servers/', parameters('SqlServerName'))]"
+                    ],
+                    "location": "[variables('location')]",
+                    "name": "AllowAllWindowsAzureIps",
+                    "properties": {
+                        "endIpAddress": "0.0.0.0",
+                        "startIpAddress": "0.0.0.0"
+                    },
+                    "type": "firewallrules"
+                },
+                {
+                    "apiVersion": "2014-04-01",
+                    "dependsOn": [
+                        "[concat('Microsoft.Sql/servers/', parameters('SqlServerName'))]"
+                    ],
+                    "location": "[variables('location')]",
+                    "name": "Default",
+                    "properties": {
+                        "connectionType": "[parameters('connectionType')]"
+                    },
+                    "type": "connectionPolicies"
+                }
+            ]
+        }       
+        
+    ],
+    "variables": {
+        "subscriptionId": "[subscription().subscriptionId]",
+        "resourceGroupName": "[resourceGroup().name]",
+        "location": "[resourceGroup().location]"
+    }
+}
