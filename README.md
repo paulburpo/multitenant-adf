@@ -9,7 +9,7 @@ The demo is designed to highlight one way in one scenario to build multi-tenant,
 ## Demo Guide
 
 ### Deploy Azure resources
-Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group. __I highly recommend that you deploy using the supplied arm template located in this repository at ___./arm_template/resources-arm.json.___ Alternatively you can follow the steps and guidance below. The provided arm template deploys everything as described below.__
+Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group. __I highly recommend that you deploy using the supplied arm template located in this repository at ___./arm_templates/resources_arm_template.json.___ Alternatively you can follow the steps and guidance below. The provided arm template deploys everything as described below.__
 
 1. Deploy source databases. For this demo I deployed three Azure SQL Databases with the sample database. These are all hosted from the same Logical SQL Server. I use the S2 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. The pipeline will use SQL Authentication so for ease of use I would use the same admin account for all of your databases. The best practice security wise would be to use a Managed Identity in Data Factory and grant access to SQL databases. Also make sure that your databases are using a public endpoint for this demo.
 
@@ -27,7 +27,7 @@ Please read and understand the entire step before trying to execute. All resourc
 
 3. Select __Build your own template in the editor__ and leave it open for now.
 
-4. Open the __arm_template\arm_template.json__ file in this repository. Select all of the text and then paste it into the __Edit template__ page and click __Save__.
+4. Open the __arm_templates\adf_pipeline_arm_template.json__ file in this repository. Select all of the text and then paste it into the __Edit template__ page and click __Save__.
 
 5. Now choose the __resource group__ and __region__ that you are deploying into, update the __Factory Name__ to reflect your data factory name. There are two connection strings you will need to populate. Below are examples of what these should look like (without the quotes). The highlighted values below will need to be updated to reflect your logins and server names.
 
