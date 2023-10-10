@@ -9,7 +9,10 @@ The demo is designed to highlight one way in one scenario to build multi-tenant,
 ## Demo Guide
 
 ### Deploy Azure resources
-Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group. __I highly recommend that you deploy using the supplied arm template located in this repository at ___./arm_templates/resources_arm_template.json.___ Alternatively you can follow the steps and guidance below. The provided arm template deploys everything as described below.__
+Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group. __I highly recommend that you deploy using the deploy to Azure button below.__ Alternatively you can follow the steps and guidance below. The provided arm template deploys everything as described below.
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fpaulburpo%2Fmultitenant-adf%2Fmain%2Farm_templates%2Fresources_arm_templates.json)
+
 
 1. Deploy source databases. For this demo I deployed three Azure SQL Databases with the sample database. These are all hosted from the same Logical SQL Server. I use the S2 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. The pipeline will use SQL Authentication so for ease of use I would use the same admin account for all of your databases. The best practice security wise would be to use a Managed Identity in Data Factory and grant access to SQL databases. Also make sure that your databases are using a public endpoint for this demo.
 
