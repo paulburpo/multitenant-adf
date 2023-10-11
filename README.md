@@ -16,7 +16,7 @@ Please read and understand the entire step before trying to execute. All resourc
 
 1. Deploy source databases. For this demo I deployed three Azure SQL Databases with the sample database. These are all hosted from the same Logical SQL Server. I use the S2 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. The pipeline will use SQL Authentication so for ease of use I would use the same admin account for all of your databases. The best practice security wise would be to use a Managed Identity in Data Factory and grant access to SQL databases. Also make sure that your databases are using a public endpoint for this demo.
 
-2. Deploy the destination data warehouse. For this I deployed one Azure SQL Database. It is hosted on the same Logical SQL Server as the source databases. I use the S3 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. I created the same admin account as the source databases, again, not best practice, it is just so I do'nt have to memorize a bunch of user names and passwords. Also make sure that your databases are using a public endpoint for this demo.
+2. Deploy the destination data warehouse. For this I deployed one Azure SQL Database. It is hosted on the same Logical SQL Server as the source databases. I use the S3 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. I created the same admin account as the source databases, again, not best practice, it is just so I don't have to memorize a bunch of user names and passwords. Also make sure that your databases are using a public endpoint for this demo.
 
 3. Deploy Azure Data Factory. 
 
