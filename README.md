@@ -215,6 +215,11 @@ The __TenantPipeline__ consists of four activities described below.
 
 3. Click the __Add trigger__ button and choose __Trigger now__ from the dropdown and click __OK__ on the popup. 
 
-You can monitor the progress of the pipelines by selecting the __Monitor__ tab on the left menu. The time it takes to complete will depend on the scale of your databases (especially the destination). If you pipeline is not making progress, click the refresh button near the top of the page.
+You can monitor the progress of the pipelines by selecting the __Monitor__ tab on the left menu. The time it takes to complete will depend on the scale of your databases (especially the destination). If you pipeline is not making progress, click the refresh button near the top of the page.  You should see your TenantPipeline run once, and the DatabaseCopyPipeline ran three times.
+![image](https://github.com/paulburpo/multitenant-adf/assets/111533671/8e756326-0cad-42d6-93da-1058cb9ab8d3)
+
 
 If you return back to the query editor in your warehouse database, you can see all the new staging tables that have been created.  
+![image](https://github.com/paulburpo/multitenant-adf/assets/111533671/a1c0341f-e844-4263-a3d2-07fb9029ce62)
+
+
