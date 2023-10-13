@@ -2,20 +2,23 @@
 
 This demo is provided as-is and is not supported in any way by me or Microsoft. It has been tested on serval different types of subscriptions but there may be deployment issues in some regions or some subscription types. Feel free to provide feedback but I can not guarantee that it will be addressed.
 
-Success in implementing this demo is reliant on you having some basic knowledge around Azure, Azure SQL Database and Azure Data Factory. If you need training, you should take training. 
+Success in implementing this demo is reliant on you having some basic knowledge around Azure, Azure SQL Database and Azure Data Factory. If you need training, please go through the Microsoft learn training.
 
 The demo is designed to highlight one way in one scenario to build multi-tenant, reusable pipelines. It is not intended to be best practice for every possible feature or scenario and it is especially NOT following best practice for security. READ: Do not implement production security like this demo.
 
 ## Demo Guide
 
 ### Deploy Azure resources
-Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group. __I highly recommend that you deploy using the supplied arm template located in this repository at ___./arm_templates/resources_arm_template.json.___ Alternatively you can follow the steps and guidance below. The provided arm template deploys everything as described below.__
+Please read and understand the entire step before trying to execute. All resources should be deployed to the same Azure region. Since this is a demo only, I would also recommend deploying to the same resource group. __I highly recommend that you deploy using the deploy to Azure button below.__ Alternatively you can follow the steps and guidance below. The deploy to Azure button deploys everything as described below.
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fpaulburpo%2Fmultitenant-adf%2Fmain%2Farm_templates%2Fresources_arm_templates.json)
+
 
 1. Deploy source databases. For this demo I deployed three Azure SQL Databases with the sample database. These are all hosted from the same Logical SQL Server. I use the S2 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. The pipeline will use SQL Authentication so for ease of use I would use the same admin account for all of your databases. The best practice security wise would be to use a Managed Identity in Data Factory and grant access to SQL databases. Also make sure that your databases are using a public endpoint for this demo.
 
-2. Deploy the destination data warehouse. For this I deployed one Azure SQL Database. It is hosted on the same Logical SQL Server as the source databases. I use the S3 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. I created the same admin account as the source databases, again, not best practice, it is just so I do'nt have to memorize a bunch of user names and passwords. Also make sure that your databases are using a public endpoint for this demo.
+2. Deploy the destination data warehouse. For this I deployed one Azure SQL Database. It is hosted on the same Logical SQL Server as the source databases. I use the S3 tier during the demo but scale down to S1 when I am not actively using it. I also enable SQL Authentication. I created the same admin account as the source databases, again, not best practice, it is just so I don't have to memorize a bunch of user names and passwords. Also make sure that your databases are using a public endpoint for this demo.
 
-3. Deploy Azure Data Factory. Nothing to really point out here. If you cannot figure out how to do this, maybe this whole computer thing isn't for you.
+3. Deploy Azure Data Factory. 
 
 ### Deploy the ARM pipeline ARM template
 
@@ -43,6 +46,9 @@ Please read and understand the entire step before trying to execute. All resourc
 This solution leverage the use of metadata tables in the destination database to store the server names, database names and tenant ids for the source databases. It also stores a list of table names that we would like to copy in our pipeline.
 
 1. From the Azure portal, navigate to your warehouse database. Select __Query editor__ from the menu on the left and login to the database.
+
+> __Note__: You may receive a warning while first logging in that your client IP address is not allowed to access the server.  At the bottom of this warning, it will suggest that you can add your IP address to the allowlist.  Click this, and then retry the login. 
+
 
 2. Open the __SQL Queries\meta-driven-pipeline.sql__ file in a text editor. You WILL need to update the insert statements for the TenantMetadata table with the correct ServerNames and DatabaseNames for your environment. The parts you must changed are highlighted below.
 
@@ -209,4 +215,11 @@ The __TenantPipeline__ consists of four activities described below.
 
 3. Click the __Add trigger__ button and choose __Trigger now__ from the dropdown and click __OK__ on the popup. 
 
-You can monitor the progress of the pipelines by selecting the __Monitor__ tab on the left menu. The time it takes to complete will depend on the scale of your databases (especially the destination). If you pipeline is not making progress, click the refresh button near the top of the page.
+You can monitor the progress of the pipelines by selecting the __Monitor__ tab on the left menu. The time it takes to complete will depend on the scale of your databases (especially the destination). If you pipeline is not making progress, click the refresh button near the top of the page.  You should see your TenantPipeline run once, and the DatabaseCopyPipeline ran three times.
+![image](https://github.com/paulburpo/multitenant-adf/assets/111533671/8e756326-0cad-42d6-93da-1058cb9ab8d3)
+
+
+If you return back to the query editor in your warehouse database, you can see all the new staging tables that have been created.  
+![image](https://github.com/paulburpo/multitenant-adf/assets/111533671/a1c0341f-e844-4263-a3d2-07fb9029ce62)
+
+
